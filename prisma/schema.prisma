@@ -1,0 +1,462 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+model User {
+  id                String               @id @default(uuid()) @db.VarChar(36)
+  fullName          String               @db.VarChar(120)
+  username          String               @unique @db.VarChar(64)
+  passwordHash      String               @db.VarChar(100)
+  role              Role                 @default(USER)
+  isActive          Boolean              @default(true)
+  createdById       String?              @db.VarChar(36)
+  createdBy         User?                @relation("UserCreator", fields: [createdById], references: [id])
+  createdUsers      User[]               @relation("UserCreator")
+  createdAt         DateTime             @default(now()) @db.DateTime(3)
+  updatedAt         DateTime             @updatedAt @db.DateTime(3)
+  sessions          Session[]
+  auditLogs         AuditLog[]
+  createdRecords    ErpRecord[]          @relation("Creator")
+  editedRecords     ErpRecord[]          @relation("Editor")
+  readings          EquipmentReading[]
+  maintenance       MaintenanceHistory[]
+  checklists        Checklist[]
+  notificationReads NotificationRead[]
+  sampleRecordsCreated SampleRecord[]  @relation("SampleRecordCreator")
+  sampleRecordsEdited  SampleRecord[]  @relation("SampleRecordEditor")
+  resultsCreated       LaboratoryResult[] @relation("LaboratoryResultCreator")
+  resultsEdited        LaboratoryResult[] @relation("LaboratoryResultEditor")
+  attachmentsUploaded  LaboratoryResultAttachment[] @relation("AttachmentUploader")
+  attachmentsRemoved   LaboratoryResultAttachment[] @relation("AttachmentRemover")
+}
+
+model Session {
+  id         String   @id @default(uuid()) @db.VarChar(36)
+  userId     String   @db.VarChar(36)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String   @unique @db.Char(64)
+  expiresAt  DateTime @db.DateTime(3)
+  createdAt  DateTime @default(now()) @db.DateTime(3)
+  lastUsedAt DateTime @default(now()) @db.DateTime(3)
+
+  @@index([expiresAt])
+}
+
+model LoginAttempt {
+  key      String   @id @db.Char(64)
+  attempts Int      @default(1)
+  resetAt  DateTime @db.DateTime(3)
+
+  @@index([resetAt])
+}
+
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  userId     String?  @db.VarChar(36)
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String   @db.VarChar(40)
+  entityType String   @db.VarChar(40)
+  entityId   String   @db.VarChar(64)
+  beforeData Json?
+  afterData  Json?
+  createdAt  DateTime @default(now()) @db.DateTime(3)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([createdAt])
+}
+
+model RealtimeEvent {
+  id         BigInt             @id @default(autoincrement())
+  eventType  String             @db.VarChar(40)
+  entityType String             @db.VarChar(40)
+  entityId   String             @db.VarChar(64)
+  payload    Json
+  createdAt  DateTime           @default(now()) @db.DateTime(3)
+  reads      NotificationRead[]
+
+  @@index([createdAt])
+}
+
+
+model EventSequence {
+  id      Int @id
+  version Int @default(0)
+}
+
+model ErpRecord {
+  id          String        @id @default(uuid()) @db.VarChar(36)
+  module      String        @db.VarChar(24)
+  date        DateTime      @db.Date
+  version     Int           @default(1)
+  isActive    Boolean       @default(true)
+  createdById String        @db.VarChar(36)
+  updatedById String        @db.VarChar(36)
+  createdBy   User          @relation("Creator", fields: [createdById], references: [id])
+  updatedBy   User          @relation("Editor", fields: [updatedById], references: [id])
+  createdAt   DateTime      @default(now()) @db.DateTime(3)
+  updatedAt   DateTime      @updatedAt @db.DateTime(3)
+  sample      Sample?
+  test        TestRecord?
+  sleeper     SleeperTrack?
+  trial       SecretTrial?
+  composition Composition?
+  batch       ProductBatch?
+  equipment   Equipment?
+  standard    Standard?
+  checklist   Checklist?
+
+  @@index([module, isActive, date])
+  @@index([createdById])
+  @@index([updatedById])
+}
+
+model Sample {
+  id             String       @id @db.VarChar(36)
+  record         ErpRecord    @relation(fields: [id], references: [id], onDelete: Cascade)
+  code           String       @unique @db.VarChar(100)
+  material       String       @db.VarChar(100)
+  grade          String       @db.VarChar(100)
+  project        String       @db.VarChar(200)
+  element        String       @db.VarChar(200)
+  castingDate    DateTime     @db.Date
+  registeredDate DateTime     @db.Date
+  age            Int
+  count          Int
+  product        String       @default("other") @db.VarChar(24)
+  track1Count    Int          @default(0)
+  track2Count    Int          @default(0)
+  track3Count    Int          @default(0)
+  companyPlannedDate DateTime? @db.Date
+  registryRecord SampleRecord?
+  status         String       @db.VarChar(40)
+  technician     String       @db.VarChar(120)
+  photos         Json
+  tests          TestRecord[]
+}
+
+model TestRecord {
+  id         String      @id @db.VarChar(36)
+  record     ErpRecord   @relation(fields: [id], references: [id], onDelete: Cascade)
+  kind       String      @db.VarChar(24)
+  sampleId   String?     @db.VarChar(36)
+  sample     Sample?     @relation(fields: [sampleId], references: [id])
+  sampleCode String      @db.VarChar(100)
+  result     Decimal     @db.Decimal(20, 8)
+  state      String      @db.VarChar(10)
+  approved   Boolean     @default(false)
+  technician String      @db.VarChar(120)
+  photos     Json
+  values     TestValue[]
+
+  @@index([kind])
+}
+
+model TestValue {
+  id           Int        @id @default(autoincrement())
+  testId       String     @db.VarChar(36)
+  test         TestRecord @relation(fields: [testId], references: [id], onDelete: Cascade)
+  name         String     @db.VarChar(64)
+  textValue    String     @db.Text
+  numericValue Decimal?   @db.Decimal(20, 8)
+
+  @@unique([testId, name])
+}
+
+model SleeperTrack {
+  id          String             @id @db.VarChar(36)
+  record      ErpRecord          @relation(fields: [id], references: [id], onDelete: Cascade)
+  date        DateTime           @db.Date
+  track       Int
+  temperature Decimal?           @db.Decimal(12, 4)
+  notes       String             @db.Text
+  entries     TemperatureEntry[]
+
+  @@unique([date, track])
+}
+
+model TemperatureEntry {
+  id        Int          @id @default(autoincrement())
+  sleeperId String       @db.VarChar(36)
+  sleeper   SleeperTrack @relation(fields: [sleeperId], references: [id], onDelete: Cascade)
+  hour      Int
+  time      String       @db.Char(5)
+  value     Decimal?     @db.Decimal(12, 4)
+  note      String       @db.VarChar(2000)
+
+  @@unique([sleeperId, hour])
+}
+
+model SecretTrial {
+  id                  String    @id @db.VarChar(36)
+  record              ErpRecord @relation(fields: [id], references: [id], onDelete: Cascade)
+  number              Int?
+  spread              Decimal?  @db.Decimal(12, 4)
+  concreteTemperature Decimal?  @db.Decimal(12, 4)
+  airTemperature      Decimal?  @db.Decimal(12, 4)
+  airContent          Decimal?  @db.Decimal(12, 4)
+  time                String    @db.VarChar(5)
+  note                String    @default("") @db.VarChar(2000)
+}
+
+model Composition {
+  id      String             @id @db.VarChar(36)
+  record  ErpRecord          @relation(fields: [id], references: [id], onDelete: Cascade)
+  time    String             @db.VarChar(5)
+  date    DateTime           @unique @db.Date
+  result  String?            @db.Text
+  entries CompositionEntry[]
+}
+
+model CompositionEntry {
+  id            String      @id @default(uuid()) @db.VarChar(36)
+  compositionId String      @db.VarChar(36)
+  composition   Composition @relation(fields: [compositionId], references: [id], onDelete: Cascade)
+  position      Int
+  cement        Decimal?    @db.Decimal(20, 8)
+  fine          Decimal?    @db.Decimal(20, 8)
+  medium        Decimal?    @db.Decimal(20, 8)
+  coarse        Decimal?    @db.Decimal(20, 8)
+  note          String      @default("") @db.VarChar(2000)
+
+  @@unique([compositionId, position])
+}
+
+model ProductBatch {
+  id      String         @id @db.VarChar(36)
+  record  ErpRecord      @relation(fields: [id], references: [id], onDelete: Cascade)
+  product String         @db.VarChar(10)
+  number  Int
+  entries ProductEntry[]
+
+  @@unique([product, number])
+}
+
+model ProductEntry {
+  id       String       @id @default(uuid()) @db.VarChar(36)
+  batchId  String       @db.VarChar(36)
+  batch    ProductBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  position Int
+  date     DateTime?    @db.Date
+  time     String       @db.VarChar(5)
+  count    Int?
+  code     String       @db.VarChar(100)
+  size     String       @db.VarChar(100)
+  curing   String       @db.VarChar(40)
+  note     String       @db.VarChar(2000)
+
+  @@unique([batchId, position])
+}
+
+model Equipment {
+  id              String               @id @db.VarChar(36)
+  record          ErpRecord            @relation(fields: [id], references: [id], onDelete: Cascade)
+  name            String               @db.VarChar(120)
+  model           String               @db.VarChar(120)
+  serial          String               @unique @db.VarChar(100)
+  kind            String               @db.VarChar(20)
+  status          String               @db.VarChar(40)
+  healthStatus    String               @db.VarChar(100)
+  lastInspection  DateTime?            @db.Date
+  nextInspection  DateTime?            @db.Date
+  calibrationDate DateTime?            @db.Date
+  technician      String               @db.VarChar(120)
+  purpose         String               @db.Text
+  specimens       String               @db.Text
+  tools           String               @db.Text
+  form            String               @db.VarChar(24)
+  steps           Json
+  failureInfo     String               @db.Text
+  maintenanceInfo String               @db.Text
+  notes           String               @db.Text
+  readings        EquipmentReading[]
+  maintenance     MaintenanceHistory[]
+  standards       Standard[]
+}
+
+model EquipmentReading {
+  id          String    @id @default(uuid()) @db.VarChar(36)
+  equipmentId String    @db.VarChar(36)
+  equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  value       Decimal   @db.Decimal(20, 8)
+  unit        String    @db.VarChar(24)
+  measuredAt  DateTime  @db.DateTime(3)
+  recordedAt  DateTime  @default(now()) @db.DateTime(3)
+  recordedBy  String    @db.VarChar(36)
+  user        User      @relation(fields: [recordedBy], references: [id])
+
+  @@index([equipmentId, measuredAt])
+}
+
+model MaintenanceHistory {
+  id          String    @id @default(uuid()) @db.VarChar(36)
+  equipmentId String    @db.VarChar(36)
+  equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  performedAt DateTime  @db.DateTime(3)
+  description String    @db.Text
+  recordedBy  String    @db.VarChar(36)
+  user        User      @relation(fields: [recordedBy], references: [id])
+
+  @@index([equipmentId, performedAt])
+}
+
+model Standard {
+  id           String     @id @db.VarChar(36)
+  record       ErpRecord  @relation(fields: [id], references: [id], onDelete: Cascade)
+  number       String     @unique @db.VarChar(100)
+  title        String     @db.VarChar(200)
+  material     String     @db.VarChar(100)
+  equipment    String     @db.VarChar(120)
+  equipmentId  String?    @db.VarChar(36)
+  equipmentRef Equipment? @relation(fields: [equipmentId], references: [id])
+  form         String     @db.VarChar(24)
+  size         String     @db.VarChar(200)
+  condition    String     @db.Text
+  formula      String     @db.VarChar(500)
+  steps        Json
+}
+
+model Checklist {
+  id      String    @id @db.VarChar(36)
+  record  ErpRecord @relation(fields: [id], references: [id], onDelete: Cascade)
+  key     String    @db.VarChar(100)
+  checks  Json
+  ownerId String    @db.VarChar(36)
+  owner   User      @relation(fields: [ownerId], references: [id])
+
+  @@unique([ownerId, key])
+}
+
+model NotificationRead {
+  userId  String        @db.VarChar(36)
+  eventId BigInt
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event   RealtimeEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@id([userId, eventId])
+}
+
+enum LabConclusion {
+  PASS
+  FAIL
+  CONDITIONAL
+  NOT_EVALUATED
+}
+
+enum ItemConclusion {
+  PASS
+  FAIL
+  NOT_EVALUATED
+}
+
+model SampleRecord {
+  id                  String             @id @default(uuid()) @db.VarChar(36)
+  sourceSampleId      String?            @unique @db.VarChar(36)
+  sourceSample        Sample?            @relation(fields: [sourceSampleId], references: [id], onDelete: Restrict)
+  code                String             @unique @db.VarChar(100)
+  material            String             @db.VarChar(100)
+  description         String             @db.VarChar(300)
+  project             String             @db.VarChar(200)
+  location            String             @db.VarChar(200)
+  quantity            Int
+  unit                String             @db.VarChar(24)
+  sampledDate         DateTime           @db.Date
+  registeredDate      DateTime           @db.Date
+  sampledBy           String             @db.VarChar(120)
+  status              String             @db.VarChar(40)
+  submittedLaboratory String?            @db.VarChar(200)
+  sentDate            DateTime?          @db.Date
+  notes               String             @db.Text
+  version             Int                @default(1)
+  isActive            Boolean            @default(true)
+  createdById         String             @db.VarChar(36)
+  updatedById         String             @db.VarChar(36)
+  createdBy           User               @relation("SampleRecordCreator", fields: [createdById], references: [id])
+  updatedBy           User               @relation("SampleRecordEditor", fields: [updatedById], references: [id])
+  createdAt           DateTime           @default(now()) @db.DateTime(3)
+  updatedAt           DateTime           @updatedAt @db.DateTime(3)
+  results             LaboratoryResult[]
+
+  @@index([isActive, registeredDate])
+  @@index([status])
+  @@index([createdById])
+  @@index([updatedById])
+}
+
+model LaboratoryResult {
+  id               String                       @id @default(uuid()) @db.VarChar(36)
+  sampleRecordId   String                       @db.VarChar(36)
+  sampleRecord     SampleRecord                 @relation(fields: [sampleRecordId], references: [id], onDelete: Restrict)
+  reportNumber     String                       @db.VarChar(100)
+  receivedDate     DateTime                     @db.Date
+  resultLaboratory String                       @db.VarChar(200)
+  testedBy         String                       @db.VarChar(120)
+  conclusion       LabConclusion                @default(NOT_EVALUATED)
+  isComplete       Boolean                      @default(false)
+  notes            String                       @db.Text
+  version          Int                          @default(1)
+  isActive         Boolean                      @default(true)
+  completedAt      DateTime?                    @db.DateTime(3)
+  createdById      String                       @db.VarChar(36)
+  updatedById      String                       @db.VarChar(36)
+  createdBy        User                         @relation("LaboratoryResultCreator", fields: [createdById], references: [id])
+  updatedBy        User                         @relation("LaboratoryResultEditor", fields: [updatedById], references: [id])
+  createdAt        DateTime                     @default(now()) @db.DateTime(3)
+  updatedAt        DateTime                     @updatedAt @db.DateTime(3)
+  items            LaboratoryResultItem[]
+  attachments      LaboratoryResultAttachment[]
+
+  @@index([sampleRecordId, isActive])
+  @@index([receivedDate])
+  @@index([createdById])
+  @@index([updatedById])
+}
+
+model LaboratoryResultItem {
+  id                  String           @id @default(uuid()) @db.VarChar(36)
+  laboratoryResultId  String           @db.VarChar(36)
+  laboratoryResult    LaboratoryResult @relation(fields: [laboratoryResultId], references: [id], onDelete: Cascade)
+  testName            String           @db.VarChar(200)
+  resultValue         String           @db.VarChar(200)
+  unit                String           @db.VarChar(50)
+  standardRequirement String           @db.VarChar(300)
+  testStandard        String           @db.VarChar(200)
+  itemConclusion      ItemConclusion   @default(NOT_EVALUATED)
+  notes               String           @db.VarChar(1000)
+  sortOrder           Int
+
+  @@index([laboratoryResultId, sortOrder])
+}
+
+// File binaries live on disk (LAB_UPLOAD_DIR); MySQL only holds protected metadata and the storage path.
+model LaboratoryResultAttachment {
+  id                 String           @id @default(uuid()) @db.VarChar(36)
+  laboratoryResultId String           @db.VarChar(36)
+  laboratoryResult   LaboratoryResult @relation(fields: [laboratoryResultId], references: [id], onDelete: Restrict)
+  originalName       String           @db.VarChar(255)
+  storedName         String           @db.VarChar(80)
+  storagePath        String           @db.VarChar(160)
+  mimeType           String           @db.VarChar(100)
+  extension          String           @db.VarChar(10)
+  size               Int
+  sha256             String           @db.Char(64)
+  uploadedById       String           @db.VarChar(36)
+  uploadedBy         User             @relation("AttachmentUploader", fields: [uploadedById], references: [id])
+  uploadedAt         DateTime         @default(now()) @db.DateTime(3)
+  removedAt          DateTime?        @db.DateTime(3)
+  removedById        String?          @db.VarChar(36)
+  removedBy          User?            @relation("AttachmentRemover", fields: [removedById], references: [id])
+
+  @@index([laboratoryResultId, removedAt])
+  @@index([uploadedById])
+  @@index([removedById])
+}

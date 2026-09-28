@@ -1,0 +1,23 @@
+import { Activity, Box, CheckCircle2, ClipboardCheck, ClipboardList, Layers, LockKeyhole, Microscope, Rows3, Timer, Wrench, type LucideIcon } from "lucide-react";
+import { useLabStore } from "@/lib/store";
+import { useProductModuleStore } from "@/features/forms/product-module-state";
+type Tone = "ok" | "warn" | "bad" | "idle";
+type ModuleInfo = { id: string; title: string; subtitle: string; icon: LucideIcon; count: number; status: string; statusTone: Tone; info: string; metric: { label: string; value: string; unit: string; delta: string; badge: string; tone: Tone }; bars: number[]; tiles: { icon: LucideIcon; value: number; label: string }[]; noteHead: string; noteText: string; items: { label: string; tag: string; tone: Tone }[]; target: { href: string } };
+export function useCommandModules(): ModuleInfo[] {
+  const tests = useLabStore(s => s.tests), equipment = useLabStore(s => s.equipment);
+  const records = useProductModuleStore(s => s.records), date = useProductModuleStore(s => s.date);
+  const sleepers = (records.sleepers ?? []).filter(r => r.date === date), batches = records.batches ?? [], trials = records.trials ?? [], recipes = records.compositions ?? [];
+  const temperatures = sleepers.flatMap(r => r.rows ?? []).filter(r => r.values.value !== "");
+  const samples = batches.flatMap(b => b.rows ?? []).reduce((sum, r) => sum + Number(r.values.count || 0), 0);
+  const ready = equipment.filter(e => e.status === "Бэлэн").length, repair = equipment.filter(e => e.status === "Засварт").length, inspect = equipment.filter(e => e.status === "Үзлэг шаардлагатай").length;
+  const approved = tests.filter(t => t.approved).length;
+  const make = (id: string, title: string, icon: LucideIcon, count: number, href: string): ModuleInfo => ({ id, title, icon, count, subtitle: "MySQL · Хадгалсан бүртгэл", status: count ? "Бүртгэлтэй" : "Мэдээлэлгүй", statusTone: count ? "ok" : "idle", info: `${count} хадгалсан бүртгэл`, metric: { label: "Нийт бүртгэл", value: String(count), unit: "", delta: "MySQL", badge: count ? "Бүртгэлтэй" : "Мэдээлэлгүй", tone: count ? "ok" : "idle" }, bars: [], tiles: [], noteHead: "Хадгалсан мэдээлэл", noteText: "Өөрчлөлт холбогдсон хэрэглэгчдэд автоматаар шинэчлэгдэнэ.", items: [], target: { href } });
+  const sleeper = make("sleepers", "Төмөр бетон дэр", Rows3, sleepers.length, "/sleepers/");
+  sleeper.subtitle = `3 зам · ${date}`; sleeper.metric = { ...sleeper.metric, label: "Цагийн хэмжилт", value: String(temperatures.length), unit: "мөр" }; sleeper.bars = temperatures.map(r => Number(r.values.value));
+  sleeper.tiles = [{ icon: Layers, label: "Бүртгэлтэй зам", value: sleepers.length }, { icon: Timer, label: "Хэмжилт", value: temperatures.length }]; sleeper.items = sleepers.map(r => ({ label: `${r.track}-р зам`, tag: r.temperature ? `${r.temperature} °C` : "Хэмжилтгүй", tone: "idle" }));
+  const small = make("small", "Жижиг эдлэл", Box, batches.length, "/small/"); small.metric = { ...small.metric, label: "Дээжийн тоо", value: String(samples), unit: "ш" }; small.tiles = [{ icon: Box, value: batches.filter(b => b.product === "pipe").length, label: "Хоолойн тогоо" }, { icon: Layers, value: batches.filter(b => b.product === "ring").length, label: "Цагирагийн тогоо" }]; small.items = batches.slice(0, 10).map(b => ({ label: `${b.product === "pipe" ? "Хоолой" : "Цагираг"} · №${b.number}`, tag: b.date, tone: "idle" }));
+  const secret = make("secret", "Secret лаборатори", LockKeyhole, trials.length + recipes.length, "/secret/"); secret.tiles = [{ icon: Activity, label: "Туршилт", value: trials.length }, { icon: Layers, label: "Найрлага", value: recipes.length }]; secret.items = trials.slice(0, 5).map(t => ({ label: `Туршилт ${t.number || "—"}`, tag: t.date, tone: "idle" }));
+  const devices = make("equipment", "Тоног төхөөрөмж", Microscope, equipment.length, "/equipment/"); devices.metric = { ...devices.metric, label: "Бэлэн байдал", value: String(equipment.length ? Math.round(100 * ready / equipment.length) : 0), unit: "%" }; devices.statusTone = repair ? "bad" : inspect ? "warn" : ready ? "ok" : "idle"; devices.tiles = [{ icon: CheckCircle2, value: ready, label: "Бэлэн" }, { icon: Activity, value: inspect, label: "Үзлэг" }, { icon: Wrench, value: repair, label: "Засварт" }]; devices.items = equipment.map(e => ({ label: e.name, tag: e.status, tone: e.status === "Бэлэн" ? "ok" : "warn" }));
+  const forms = make("forms", "Маягтууд", ClipboardList, tests.length, "/forms/"); forms.tiles = [{ icon: ClipboardCheck, value: approved, label: "Баталгаажсан" }, { icon: Activity, value: tests.length - approved, label: "Хянах" }]; forms.bars = tests.slice(0, 24).map(t => t.result);
+  return [sleeper, small, secret, devices, forms];
+}

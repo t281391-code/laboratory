@@ -1,0 +1,73 @@
+/* One shared HUD focus frame: four corner brackets, transparent centre. */
+.global-focus {
+  /* Follows the project's accent (orange in the HUD theme). */
+  --gf-color: var(--orange, var(--gold, #ff8350));
+  --gf-size: 14px;
+  --gf-thickness: 2px;
+}
+/* Overrides the UA [popover] box (centred, bordered, opaque) so the frame is
+   a plain fixed layer sized by its motion values. */
+.global-focus[popover] {
+  position: fixed;
+  inset: auto;
+  left: 0;
+  top: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: visible;
+  background: transparent;
+  color: inherit;
+  pointer-events: none;
+  z-index: 2147483647;
+  will-change: transform, width, height;
+}
+.global-focus__corner {
+  position: absolute;
+  width: var(--gf-size);
+  height: var(--gf-size);
+  border: 0 solid var(--gf-color);
+  pointer-events: none;
+  filter: drop-shadow(0 0 3px var(--gf-color))
+    drop-shadow(0 0 8px color-mix(in srgb, var(--gf-color) 55%, transparent));
+  animation: global-focus-glow 2.4s ease-in-out infinite;
+}
+.global-focus__corner--tl {
+  top: 0;
+  left: 0;
+  border-top-width: var(--gf-thickness);
+  border-left-width: var(--gf-thickness);
+  border-top-left-radius: 4px;
+}
+.global-focus__corner--tr {
+  top: 0;
+  right: 0;
+  border-top-width: var(--gf-thickness);
+  border-right-width: var(--gf-thickness);
+  border-top-right-radius: 4px;
+}
+.global-focus__corner--bl {
+  bottom: 0;
+  left: 0;
+  border-bottom-width: var(--gf-thickness);
+  border-left-width: var(--gf-thickness);
+  border-bottom-left-radius: 4px;
+}
+.global-focus__corner--br {
+  bottom: 0;
+  right: 0;
+  border-bottom-width: var(--gf-thickness);
+  border-right-width: var(--gf-thickness);
+  border-bottom-right-radius: 4px;
+}
+@keyframes global-focus-glow {
+  50% {
+    filter: drop-shadow(0 0 5px var(--gf-color))
+      drop-shadow(0 0 13px color-mix(in srgb, var(--gf-color) 70%, transparent));
+  }
+}
+@media print {
+  .global-focus {
+    display: none !important;
+  }
+}

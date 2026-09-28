@@ -1,0 +1,12 @@
+node_modules/
+.npm-cache/
+.next/
+out/
+*.tsbuildinfo
+playwright-report/
+test-results/
+.env*
+!.env.example
+src/generated/
+.verification/
+storage/

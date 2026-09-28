@@ -1,0 +1,420 @@
+/* Instrument-panel sidebar: grouped modules, click-to-expand rail that pushes
+   the content via CSS grid, test-tube active indicator. Loaded after
+   command.css so it wins the cascade. */
+:root { --sidebar: 68px; --sidebar-w: 68px; }
+
+/* Mobile/tablet (<1024px): sidebar stays the original fixed overlay drawer
+   defined in globals.css (position:fixed, .open slide-in, .sidebar-scrim). */
+.main-shell { margin: 0; max-width: none; }
+
+@media (min-width: 1024px) {
+  /* Desktop: the sidebar is pushed content, not an overlay. app-shell owns
+     the grid track that --sidebar-w animates; the sidebar itself just fills
+     its column (no more position:fixed, no width transition of its own). */
+  .app-shell {
+    display: grid;
+    grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+    transition: grid-template-columns 0.25s ease;
+    align-items: start;
+  }
+  .sidebar.instrument-rail {
+    position: sticky;
+    top: 0;
+    left: auto;
+    width: auto;
+    height: 100dvh;
+  }
+}
+
+.sidebar.instrument-rail {
+  display: flex;
+  flex-direction: column;
+  padding: 16px 0 12px;
+  overflow: visible;
+}
+.instrument-top-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px 0 15px;
+  margin: 0 0 16px;
+}
+.sidebar.instrument-rail .brand-link { padding: 0; margin: 0; flex: 1; min-width: 0; }
+.sidebar.instrument-rail .brand { justify-content: flex-start; gap: 10px; }
+
+.instrument-toggle {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  border: 1px solid #2a3947;
+  background: #16202a;
+  color: #8598a8;
+  cursor: pointer;
+}
+.instrument-toggle:hover { color: var(--orange); background: #ff835014; border-color: #ff835040; }
+.instrument-toggle[aria-pressed="true"] { color: var(--orange); background: #ff835020; border-color: #ff835055; }
+
+.instrument-nav-wrap {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-top: 2px;
+}
+.instrument-tube {
+  position: relative;
+  width: 8px;
+  flex: none;
+  margin: 2px 10px 2px 16px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #182430, #0e161f);
+  border: 1px solid #263441;
+  box-shadow: inset 0 0 6px #00000066;
+}
+.instrument-liquid {
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  bottom: 1px;
+  min-height: 6px;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(180deg, #ffb27a, #ff8350 55%, #d9602c);
+  box-shadow: 0 0 10px #ff835066, inset 0 2px 3px #ffffff40;
+  overflow: visible;
+  transition: height 0.7s cubic-bezier(.32, 1.5, .38, 1);
+}
+.instrument-liquid-fill {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+/* Glowing meniscus line at the liquid's current top surface. */
+.instrument-liquid::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -2px;
+  right: -2px;
+  height: 3px;
+  border-radius: 2px;
+  background: #fff3dd;
+  box-shadow: 0 0 6px 2px #ffb877, 0 0 14px 5px #ff8350b0;
+}
+/* Small glowing bead centered on the meniscus, reads clearly even when the tube is nearly full. */
+.instrument-liquid::before {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: #fff6e6;
+  box-shadow: 0 0 8px 3px #ffb877, 0 0 18px 7px #ff8350cc;
+  z-index: 2;
+}
+.instrument-bubble {
+  position: absolute;
+  left: var(--bx);
+  bottom: -6px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #fff2e0cc;
+  animation: instrument-bubble-rise 2.8s ease-in infinite;
+  animation-delay: var(--bdelay);
+}
+@keyframes instrument-bubble-rise {
+  0% { transform: translateY(0) scale(0.6); opacity: 0; }
+  15% { opacity: 0.9; }
+  88% { opacity: 0.4; }
+  100% { transform: translateY(-160px) scale(1); opacity: 0; }
+}
+
+.instrument-groups {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.instrument-group { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+.instrument-group-label {
+  height: 20px;
+  display: none;
+  align-items: center;
+  padding: 0 16px 0 12px;
+  font: 9px/1 Consolas, monospace;
+  letter-spacing: 1.4px;
+  color: #566475;
+  white-space: nowrap;
+}
+
+.instrument-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  width: 100%;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  color: #8598a8;
+  text-decoration: none;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+.instrument-item:hover { background: #1c2934; border-color: #35434f; color: #dbe4ea; }
+.instrument-item.active { background: #ff83500f; border-color: #ff835040; color: var(--orange); }
+/* Hover corner brackets: painted directly on the hovered row via background
+   layers (two L-shaped strokes per corner), so they can never lag behind or
+   linger on a different item — they exist only while :hover is true on THIS row. */
+.instrument-item::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  background:
+    linear-gradient(var(--orange), var(--orange)) top left / 8px 2px no-repeat,
+    linear-gradient(var(--orange), var(--orange)) top left / 2px 8px no-repeat,
+    linear-gradient(var(--orange), var(--orange)) top right / 8px 2px no-repeat,
+    linear-gradient(var(--orange), var(--orange)) top right / 2px 8px no-repeat,
+    linear-gradient(var(--orange), var(--orange)) bottom left / 8px 2px no-repeat,
+    linear-gradient(var(--orange), var(--orange)) bottom left / 2px 8px no-repeat,
+    linear-gradient(var(--orange), var(--orange)) bottom right / 8px 2px no-repeat,
+    linear-gradient(var(--orange), var(--orange)) bottom right / 2px 8px no-repeat;
+  filter: drop-shadow(0 0 3px #ff8350aa);
+}
+.instrument-item:hover::before { opacity: 1; }
+.instrument-index {
+  flex: none;
+  width: 14px;
+  margin-left: 12px;
+  font: 9px/1 Consolas, monospace;
+  color: #52606f;
+  display: none;
+  overflow: hidden;
+}
+.instrument-item.active .instrument-index { color: #ff9d70; }
+.instrument-icon { flex: none; }
+.instrument-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  display: none;
+}
+.instrument-led {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3f5a45;
+  display: none;
+}
+.instrument-led.ok { background: #6fdc8c; box-shadow: 0 0 5px #6fdc8c88; }
+.instrument-led.warn { background: #ff9b4a; box-shadow: 0 0 6px #ff9b4aa0; animation: instrument-led-pulse 1.6s ease-in-out infinite; }
+@keyframes instrument-led-pulse { 50% { opacity: 0.35; } }
+.instrument-badge {
+  flex: none;
+  font: 9px/1 Consolas, monospace;
+  background: #2a3947;
+  color: #cddbe4;
+  border-radius: 8px;
+  padding: 3px 6px;
+  display: none;
+  overflow: hidden;
+}
+.instrument-item.active .instrument-badge { background: #ff835026; color: #ffb98c; }
+
+.instrument-corner {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 0 solid var(--orange);
+  pointer-events: none;
+  filter: drop-shadow(0 0 3px #ff8350aa);
+}
+.instrument-corner.tl { top: -1px; left: -1px; border-top-width: 2px; border-left-width: 2px; border-top-left-radius: 3px; }
+.instrument-corner.tr { top: -1px; right: -1px; border-top-width: 2px; border-right-width: 2px; border-top-right-radius: 3px; }
+.instrument-corner.bl { bottom: -1px; left: -1px; border-bottom-width: 2px; border-left-width: 2px; border-bottom-left-radius: 3px; }
+.instrument-corner.br { bottom: -1px; right: -1px; border-bottom-width: 2px; border-right-width: 2px; border-bottom-right-radius: 3px; }
+
+.instrument-bottom {
+  padding: 10px 8px 0;
+  margin-top: 6px;
+  border-top: 1px solid #212e3a;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.instrument-user { display: flex; align-items: center; gap: 10px; padding: 4px 3px; }
+.instrument-avatar {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  border: 1px solid #435363;
+  background: #1a2632;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 10px/1 Consolas, monospace;
+  color: #cddbe4;
+}
+.instrument-user-info {
+  overflow: hidden;
+  opacity: 0;
+  max-width: 0;
+  white-space: nowrap;
+  transition: opacity 0.15s ease, max-width 0.25s ease;
+}
+.instrument-user-info strong { display: block; font-size: 11.5px; color: #dbe4ea; font-weight: 500; }
+.instrument-user-info small { font-size: 9.5px; color: #7e92a2; }
+.instrument-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 2px 3px;
+  font: 8.5px/1 Consolas, monospace;
+  letter-spacing: 0.6px;
+  color: #7e92a2;
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: opacity 0.15s ease, max-width 0.25s ease;
+}
+.instrument-live-dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: #52606f; }
+.instrument-live-dot.live { background: #6fdc8c; box-shadow: 0 0 6px #6fdc8c99; animation: instrument-led-pulse 2s ease-in-out infinite; }
+.instrument-live-dot.warn { background: #ff9b4a; box-shadow: 0 0 6px #ff9b4a99; animation: instrument-led-pulse 1s ease-in-out infinite; }
+.instrument-live-dot.off { background: #6b7887; }
+.instrument-logout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 3px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #8e9fad;
+  cursor: pointer;
+}
+.instrument-logout:hover { background: #2a1b1b; border-color: #4a2a2a; color: #ff9d8c; }
+.instrument-logout span {
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 12px;
+  transition: opacity 0.15s ease, max-width 0.25s ease;
+}
+
+@media (min-width: 1024px) {
+  .instrument-toggle {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  }
+  .sidebar.instrument-rail.expanded .instrument-toggle {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .sidebar.instrument-rail .brand > div:not(.brand-symbol) {
+    display: block;
+    opacity: 0;
+    max-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: opacity 0.15s ease, max-width 0.25s ease;
+  }
+  .instrument-user { justify-content: flex-start; }
+  .instrument-status { justify-content: flex-start; }
+  .instrument-logout { justify-content: flex-start; }
+  .sidebar.instrument-rail.expanded .brand > div:not(.brand-symbol),
+  .sidebar.instrument-rail.expanded .instrument-user-info,
+  .sidebar.instrument-rail.expanded .instrument-status,
+  .sidebar.instrument-rail.expanded .instrument-logout span {
+    opacity: 1;
+    max-width: 160px;
+  }
+  .sidebar.instrument-rail.expanded .instrument-group-label {
+    display: flex;
+  }
+  .sidebar.instrument-rail.expanded .instrument-item {
+    justify-content: flex-start;
+    padding: 0 16px 0 12px;
+  }
+  .sidebar.instrument-rail.expanded .instrument-index {
+    display: block;
+    margin-left: 0;
+  }
+  .sidebar.instrument-rail.expanded .instrument-label {
+    display: block;
+    flex: 1 1 auto;
+    margin-left: 10px;
+  }
+  .sidebar.instrument-rail.expanded .instrument-led {
+    display: block;
+    margin-left: 8px;
+  }
+  .sidebar.instrument-rail.expanded .instrument-badge {
+    display: block;
+    margin-left: 8px;
+  }
+}
+
+@media (max-width: 1023px) {
+  /* Overlay drawer for the whole <1024px range (extends globals.css's narrower
+     <851px rule up to the new breakpoint): hidden off-canvas until .open. */
+  .sidebar.instrument-rail {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 260px;
+    height: 100dvh;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    visibility: hidden;
+    z-index: 40;
+  }
+  .sidebar.instrument-rail.open {
+    transform: translateX(0);
+    visibility: visible;
+  }
+  .sidebar-scrim {
+    position: fixed;
+    inset: 0;
+    background: #17372b70;
+    z-index: 39;
+    backdrop-filter: blur(2px);
+  }
+  .instrument-toggle { display: none; }
+  .mobile-menu { display: inline-flex; }
+  .instrument-item { height: 44px; font-size: 14px; justify-content: flex-start; padding: 0 16px 0 12px; }
+  .instrument-group-label { display: flex; }
+  .instrument-user-info,
+  .instrument-status,
+  .instrument-logout span {
+    opacity: 1;
+    max-width: none;
+  }
+  .instrument-index { display: block; margin-left: 0; }
+  .instrument-label { display: block; flex: 1 1 auto; margin-left: 10px; font-size: 14px; }
+  .instrument-led { display: block; margin-left: 8px; }
+  .instrument-badge { display: block; margin-left: 8px; }
+}
