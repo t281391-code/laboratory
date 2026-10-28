@@ -34,9 +34,7 @@ The production build exports static HTML/CSS/JS to `out/`. `npm start` serves th
 
 The header includes global sample search (`Ctrl/Cmd + K`), persistent notification read state, and a demo profile. On tablet/mobile the sidebar becomes a drawer.
 
-## Data and persistence
 
-- `src/data/mock.ts`: typed seed samples, results, equipment, methods, and notifications.
 - `src/lib/types.ts`: domain types.
 - `src/lib/store.ts`: Zustand state with `localStorage` persistence under `sorits-lab-demo-v1`.
 - `src/features/forms/config.ts`: all field definitions, Zod rules, calculation formulas, and illustrative thresholds.
